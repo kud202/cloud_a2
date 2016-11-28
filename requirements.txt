@@ -1,0 +1,5 @@
+flask
+jinja2
+elasticsearch
+requests_aws4auth
+boto3

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tweet Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1., user-scalable=no">
+    <link href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style type="text/css">
+        /* Always set the map height explicitly to define the size of the div
+         * element that contains the map. */
+        form {
+            height: 20%;
+        }
+
+        #map {
+            height: 640px;
+        }
+
+        /* Optional: Makes the sample page fill the window. */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+<form id="searchform">
+    <label>Search Query: </label>
+    <select id="term" name="term" onchange="$('#searchform').submit();">
+        <option value="nyc" {% if prev_term is equalto("nyc") %}selected{% endif %}>nyc</option>
+        <option value="nyu" {% if prev_term is equalto("nyu") %}selected{% endif %}> nyu</option>
+        <option value="brooklyn" {% if prev_term is equalto("brooklyn") %}selected{% endif %}>brooklyn</option>
+    </select>
+</form>
+<span id="updated"></span>
+<div id="map"></div>
+<script>
+    function updateMap() {
+
+        var xhr = new XMLHttpRequest();
+        var lastTime = Date.parse(document.getElementById('updated').innerHTML).valueOf()/1000;
+        xhr.open('GET', "new?from="+lastTime+"&term="+document.getElementById("term").value, true);
+        xhr.send();
+        xhr.addEventListener("readystatechange", function () {
+            if (xhr.readyState == 4) {
+                if (xhr.status != 200) {
+                    console.log(xhr.responseText);
+                    alert("Error connecting to server: " + xhr.status)
+                } else {
+                    var icons = {
+                        positive: "static/1f603.png",
+                        negative: "static/1f610.png",
+                        neutral: "static/2639.png"
+                    };
+                    var newTweets = JSON.parse(xhr.responseText);
+                    var lastTime = Date.parse(document.getElementById('updated').innerHTML).valueOf()/1000;
+                    newTweets.forEach(function (newTweet) {
+                        var marker = new google.maps.Marker({
+                            position: {
+                                lat: newTweet._source.geo.coordinates[0],
+                                lng: newTweet._source.geo.coordinates[1]
+                            },
+                            map: map,
+                            icon: icons[newTweet._source.sentiment.type],
+                            content: "<h3>@"+newTweet._source.user.screen_name+"</h3><p>"+
+                                    newTweet._source.text.replace('\n','<br>')+"</p>"
+                        });
+                        lastTime = Math.max(lastTime, newTweet._source.fetched);
+                        marker.addListener('click', function () {
+                            new google.maps.InfoWindow({
+                                content: this.content
+                            }).open(map, this);
+                         });
+                        marker.setMap(map);
+                        bounds.extend(marker.position);
+                    });
+                    map.fitBounds(bounds);
+                    document.getElementById("updated").innerHTML = (new Date(lastTime*1000)).toUTCString();
+                }
+            }
+        }, false);
+        setTimeout(updateMap, 15000)
+    }
+    function initMap() {
+        document.getElementById("updated").innerHTML = (new Date(0)).toUTCString();
+        bounds = new google.maps.LatLngBounds();
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 4,
+            center: {lat: 0, lng: 0}
+        });
+        updateMap()
+    }
+</script>
+<script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDS_hMqh7_u37s7PzMabwTNUQV0teF1eXA&callback=initMap">
+</script>
+<script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+<script src="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+</body>
+</html>
